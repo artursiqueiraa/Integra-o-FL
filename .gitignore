@@ -30,6 +30,9 @@ Thumbs.db
 ## Artefatos de build do TypeScript
 Frontend/tsconfig.tsbuildinfo
 
+## Estado local de ferramentas de IDE/agente (não é código-fonte do projeto)
+.claude/
+
 ## Arquivos residuais soltos na raiz (dumps de comandos/rascunhos de sessões
 ## anteriores, vazios ou obsoletos — não fazem parte do projeto)
 /netstat
