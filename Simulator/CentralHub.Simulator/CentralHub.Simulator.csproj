@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>CentralHub.Simulator</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Reaproveita so os utilitarios genericos de framing (PacketBuilder, PacketParser,
+         ChecksumCalculator, JflCommand, JflFrameReader). Nao reaproveita SessionManager nem
+         JflSession, que sao conceitos do lado servidor. -->
+    <ProjectReference Include="..\..\SDK\CentralHub.SDK\CentralHub.SDK.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="CentralHub.Simulator.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,40 @@
+## .NET (Backend/SDK/Simulator/ferramentas)
+**/bin/
+**/obj/
+*.db
+*.db-shm
+*.db-wal
+.vs/
+*.user
+
+## Frontend
+Frontend/node_modules/
+Frontend/dist/
+
+## Artefatos gerados localmente (não fazem parte do código-fonte)
+BenchmarkDotNet.Artifacts/
+Backups/
+
+## Manuais oficiais do fabricante JFL (material com direitos autorais de terceiros —
+## não deve ser publicado num repositório público; o conteúdo relevante já foi
+## transcrito para Documentation/02_JFL_PROTOCOL_GUIDE.md e Documentation/Protocol/*.md)
+## Padrão com curinga em vez do nome acentuado literal: o nome da pasta no disco usa
+## normalização Unicode NFD (chars combinantes), que não bate byte-a-byte com o NFC
+## digitado aqui — o curinga evita esse problema de vez.
+Documenta*JFL*/
+
+## SO
+Thumbs.db
+.DS_Store
+
+## Artefatos de build do TypeScript
+Frontend/tsconfig.tsbuildinfo
+
+## Arquivos residuais soltos na raiz (dumps de comandos/rascunhos de sessões
+## anteriores, vazios ou obsoletos — não fazem parte do projeto)
+/netstat
+/tasklist
+/especificados
+/INFORMAÇÕES
+/gitignore.txt
+/package-lock.json
