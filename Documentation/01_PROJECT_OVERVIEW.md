@@ -130,11 +130,13 @@ antiga** — um `AdapterFactory`, um `JflAdapter` que finge conversar com a cent
 de saída — que **não fazem parte do caminho real usado hoje**. O endpoint `POST
 /api/central/testar-conexao` e a tela "Testar Conexão" chegaram a existir nessa fase de transição,
 mas **foram removidos** (não só marcados como legado) numa limpeza posterior, já que ambos
-induziam ao erro descrito acima; o restante do `AdapterFactory`/`JflAdapter`/`IntelbrasAdapter`
-continua no código, agora marcado com `[Obsolete]`, porque ainda alimenta o fluxo simulado de
-`OperationService` (fora do escopo desta limpeza) — apagar exigiria reescrever esse fluxo também, o
-que documentar e substituir com segurança é mais importante do que fazer às pressas. Um
-desenvolvedor novo precisa saber que esse código é legado e não deve ser copiado como exemplo. Isso
+induziam ao erro descrito acima. O `OperationService` (fluxo simulado da tela "Operação",
+alimentado por esses mesmos Adapters) **também foi removido** numa limpeza seguinte — a tela
+"Operação" hoje chama `PgmService` diretamente, o mesmo caminho real da Tela Central. O restante do
+`AdapterFactory`/`JflAdapter`/`IntelbrasAdapter` continua no código, agora marcado com `[Obsolete]`
+e **sem nenhum consumidor real restante** — não foi apagado por precaução, não porque ainda seja
+necessário. Um desenvolvedor novo precisa saber que esse código é legado e não deve ser copiado
+como exemplo. Isso
 está detalhado nos documentos [`05_SOURCE_CODE_GUIDE.md`](05_SOURCE_CODE_GUIDE.md) e
 [`ARQUITETURA_SESSION_MANAGER.md`](ARQUITETURA_SESSION_MANAGER.md) (este último cobre
 especificamente a tela "Centrais" e o painel de monitoramento de sessão que substituiu o teste de

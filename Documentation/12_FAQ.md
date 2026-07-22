@@ -210,21 +210,24 @@ Sim, em [`05_SOURCE_CODE_GUIDE.md`](05_SOURCE_CODE_GUIDE.md), seção de mapa de
 `SDK/CentralHub.SDK/Jfl/Server/SessionManager.cs` e `JflSession.cs`.
 
 **43. Existe código legado no projeto? Qual e por que ainda está lá?**
-Sim: `SDK/CentralHub.SDK/Adapters/*` (arquitetura antiga de conexão de saída, hoje marcado
-`[Obsolete]`), `KeepAliveService.cs` (desregistrado),
-`OperationService.cs`/`OperationController.cs`/`OperationPage.tsx`. Mantidos porque ainda alimentam
-o fluxo simulado de `OperationService` — não devem ser usados como referência. Ver
+Sim, mas cada vez menos: `SDK/CentralHub.SDK/Adapters/*` (`AdapterFactory`, `JflAdapter`,
+`IntelbrasAdapter`, `FakeAdapter`, `TcpConnectionHelper` — arquitetura antiga de conexão de saída,
+marcado `[Obsolete]`) e `KeepAliveService.cs` (desregistrado, não roda mais). Ambos continuam no
+projeto só por precaução (não apagados sem necessidade) — ver
 [`05_SOURCE_CODE_GUIDE.md`](05_SOURCE_CODE_GUIDE.md), seção 6.
-`Backend/.../Services/ConnectionService.cs` e o endpoint `POST /api/central/testar-conexao`, que
-estavam nesta mesma lista, **foram removidos de verdade** numa limpeza posterior — ver
-[`ARQUITETURA_SESSION_MANAGER.md`](ARQUITETURA_SESSION_MANAGER.md).
+`Backend/.../Services/ConnectionService.cs` (endpoint `POST /api/central/testar-conexao`) e
+`Backend/.../Services/OperationService.cs` (fluxo simulado da tela "Operação", via
+`AdapterFactory`/`FakeAdapter`) **foram removidos de verdade**, em limpezas separadas — ver
+[`ARQUITETURA_SESSION_MANAGER.md`](ARQUITETURA_SESSION_MANAGER.md) e
+[`Protocol/20_CHANGELOG.md`](Protocol/20_CHANGELOG.md) ("Fase 4"). `OperationController.cs`/
+`OperationPage.tsx` **não são mais legados** — hoje chamam `PgmService` diretamente, o mesmo
+serviço real da Tela Central, sem nenhuma simulação.
 
 **44. Posso simplesmente apagar o código legado?**
-Depende de qual: `ConnectionService`/`testar-conexao` já foram apagados (sem consumidores reais).
-O que resta (`Adapters/*`, `OperationService`) tecnicamente também poderia ser apagado, mas isso
-está fora do escopo autorizado até o momento, porque ainda tem um consumidor real
-(`OperationService`/tela "Operação") — o projeto optou por marcá-lo com `[Obsolete]` e documentá-lo
-em vez de removê-lo, para preservar histórico e evitar quebrar esse fluxo.
+O que resta (`Adapters/*`, `KeepAliveService.cs`) não tem mais nenhum consumidor real desde que
+`OperationService` foi removido — tecnicamente já poderia ser apagado com segurança. Continua no
+projeto por precaução (não apagar código sem necessidade explícita), documentado como órfão em vez
+de removido às pressas — ver [`14_ROADMAP.md`](14_ROADMAP.md), seção 13.
 
 **45. Onde ficam os testes unitários?**
 `SDK/CentralHub.SDK.Tests/` — cobrem o parser, o checksum, os comandos implementados, usando

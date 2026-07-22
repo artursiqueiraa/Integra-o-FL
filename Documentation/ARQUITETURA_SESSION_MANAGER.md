@@ -142,10 +142,14 @@ inteira aconteceu na camada Backend (Controllers/Services/DTOs/Logging) e Fronte
 `SDK/CentralHub.SDK/Adapters/TcpConnectionHelper.cs`, `JflAdapter.cs`, `IntelbrasAdapter.cs`,
 `AdapterFactory.cs` — só os métodos de conexão de saída (`TestarConexao`,
 `VerificarConectividade`, `DetectarEConectar`) ganharam `[Obsolete]`; `AcionarPGM`/`DesligarPGM`/
-`PulsoPGM`/`Criar`/`ResolverPorNome` continuam sem anotação porque ainda alimentam
-`OperationService` (a tela "Operação" legada, fora do escopo desta limpeza — ver
-[`05_SOURCE_CODE_GUIDE.md`](05_SOURCE_CODE_GUIDE.md), seção 6). Não é dead code: remover exigiria
-reescrever `OperationService` primeiro.
+`PulsoPGM`/`Criar`/`ResolverPorNome` continuavam sem anotação, no momento em que esta mudança foi
+feita, porque alimentavam `OperationService` (a tela "Operação" legada, fora do escopo desta
+limpeza específica).
+>
+> **Atualização:** `OperationService` foi removido numa limpeza posterior (ver
+> [`Protocol/20_CHANGELOG.md`](Protocol/20_CHANGELOG.md), "Fase 4") — `OperationController` chama
+> `PgmService` diretamente hoje, e os métodos de PGM do `Adapters/*` **não têm mais nenhum
+> consumidor real**. Continuam no código por precaução, não por necessidade.
 
 ### Novo
 
@@ -329,9 +333,12 @@ estruturados que o SDK **já emite hoje** (`_logger.LogInformation("...{Seq}..."
 alterar nenhum arquivo do SDK. Ver seção 4.1.
 
 **P: Isso quebra a tela "Operação" ou o fluxo de PGM da Tela Central?**
-R: Não. `PgmService`/`PgmCommandService` (o caminho real de PGM) não foram tocados.
-`OperationService`/`OperationPage` (a tela legada) continuam funcionando, porque
-`AdapterFactory`/`JflAdapter`/`IntelbrasAdapter` só ganharam `[Obsolete]` — comportamento idêntico.
+R: Não. `PgmService`/`PgmCommandService` (o caminho real de PGM) não foram tocados. E a pergunta
+em si ficou desatualizada: `OperationService` foi removido numa limpeza posterior, e `OperationPage`
+não é mais uma tela legada — hoje ela chama `PgmService`/`ArmService` diretamente, exatamente como
+a Tela Central (ver [`Protocol/20_CHANGELOG.md`](Protocol/20_CHANGELOG.md), "Fase 4" e "Fase 5").
+`AdapterFactory`/`JflAdapter`/`IntelbrasAdapter` continuam só com `[Obsolete]`, mas hoje sem
+nenhum consumidor real.
 
 ## 11. Checklist de entendimento
 

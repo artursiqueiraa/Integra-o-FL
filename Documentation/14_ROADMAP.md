@@ -165,11 +165,15 @@ inicialização do Backend.
 (concluído — ver [`ARQUITETURA_SESSION_MANAGER.md`](ARQUITETURA_SESSION_MANAGER.md)), substituídos
 pelo painel de monitoramento de sessão (`CentralSessionService` + `SessionManager`).
 
-Candidatos restantes: `SDK/CentralHub.SDK/Adapters/*` (já marcado `[Obsolete]`),
-`KeepAliveService.cs`, `OperationService.cs`/`OperationController.cs`/`OperationPage.tsx` (ver
-[`05_SOURCE_CODE_GUIDE.md`](05_SOURCE_CODE_GUIDE.md), seção 6). Recomenda-se remover somente depois
-de confirmar, por busca no código, que nada mais referencia essas classes — hoje isso significa
-reescrever `OperationService`/`OperationPage` primeiro, já que é o único consumidor real que resta.
+`OperationService.cs` **também já foi removido** — `OperationController.cs` chama `PgmService`
+diretamente hoje (mesmo serviço real da Tela Central), e `OperationPage.tsx` deixou de ser legada
+(virou o painel dinâmico por Prédio/Central). Ver [`Protocol/20_CHANGELOG.md`](Protocol/20_CHANGELOG.md)
+("Fase 4").
+
+Candidatos restantes, agora **sem nenhum consumidor real**: `SDK/CentralHub.SDK/Adapters/*` (já
+marcado `[Obsolete]`) e `KeepAliveService.cs` (ver [`05_SOURCE_CODE_GUIDE.md`](05_SOURCE_CODE_GUIDE.md),
+seção 6) — podem ser removidos com segurança numa próxima faxina, sem depender de mais nenhuma
+reescrita.
 
 ## 14. Boas práticas para quem for implementar o roadmap
 
