@@ -38,8 +38,9 @@ builder.Services.AddScoped<CentralStatusService>();
 builder.Services.AddScoped<PgmService>();
 builder.Services.AddScoped<ArmService>();
 builder.Services.AddScoped<ZoneInhibitService>();
-builder.Services.AddScoped<OperationService>();
 builder.Services.AddScoped<CentralSessionService>();
+builder.Services.AddScoped<PgmPredioService>();
+builder.Services.AddScoped<ZonaPredioService>();
 
 // Captura de atividade da sessao (painel "Log da Central", SEQ/bytes/latencia/ultimo comando)
 // — so observa logs estruturados que o SDK ja emite hoje (appsettings.json ja tem

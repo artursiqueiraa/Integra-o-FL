@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import api from '../services/api'
-import { ZonaStatus } from '../types'
+import { ZonaStatus, ZonaPredio } from '../types'
 import {
   Typography, Stack, Chip, Tooltip, CircularProgress, Alert,
   Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button
@@ -9,12 +9,19 @@ import {
 interface Confirmacao {
   zona: number
   inibir: boolean
+  rotulo: string
 }
 
 interface Props {
   zonas: ZonaStatus[]
   totalZonas: number
   centralId: number
+  /**
+   * Catálogo opcional (nome/tipo cadastrados via `ZonaPredioService`) — quando informado, o
+   * painel mostra só as zonas cadastradas e ativas, com o nome do cadastro em vez de "Z-N"
+   * genérico. Sem essa prop, comportamento idêntico ao de sempre (usado pela Tela Central).
+   */
+  catalogo?: ZonaPredio[]
   /** Chamado apos qualquer comando concluir com sucesso, para o chamador atualizar o status. */
   onComandoConcluido: () => void
 }
@@ -31,17 +38,23 @@ const COR_ZONA: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
   Desabilitada: 'default',
 }
 
-export default function ZonasPanel({ zonas, totalZonas, centralId, onComandoConcluido }: Props) {
+export default function ZonasPanel({ zonas, totalZonas, centralId, catalogo, onComandoConcluido }: Props) {
   const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null)
   const [executandoZona, setExecutandoZona] = useState<number | null>(null)
   const [erro, setErro] = useState<string | null>(null)
+
+  const zonasExibidas = catalogo
+    ? zonas.filter(z => catalogo.some(item => item.numero === z.numero && item.ativa))
+    : zonas
+
+  const rotulo = (numero: number) => catalogo?.find(item => item.numero === numero)?.nome || `Z${numero}`
 
   const clicarZona = (zona: ZonaStatus) => {
     if (!zona.permiteInibir) {
       return
     }
     setErro(null)
-    setConfirmacao({ zona: zona.numero, inibir: zona.estado !== 'Inibida' })
+    setConfirmacao({ zona: zona.numero, inibir: zona.estado !== 'Inibida', rotulo: rotulo(zona.numero) })
   }
 
   const executar = async () => {
@@ -56,7 +69,7 @@ export default function ZonasPanel({ zonas, totalZonas, centralId, onComandoConc
       onComandoConcluido()
     } catch (e) {
       const resposta = (e as { response?: { data?: { mensagem?: string } } }).response
-      setErro(resposta?.data?.mensagem || `Falha ao ${inibir ? 'inibir' : 'desinibir'} a zona ${zona}.`)
+      setErro(resposta?.data?.mensagem || `Falha ao ${inibir ? 'inibir' : 'desinibir'} ${confirmacao.rotulo}.`)
     } finally {
       setExecutandoZona(null)
     }
@@ -65,23 +78,25 @@ export default function ZonasPanel({ zonas, totalZonas, centralId, onComandoConc
   return (
     <>
       <Typography variant="subtitle1" gutterBottom>
-        Zonas ({zonas.length} de {totalZonas} ativas) — clique numa zona com permissão para inibir/desinibir
+        Zonas ({zonasExibidas.length} de {totalZonas} ativas) — clique numa zona com permissão para inibir/desinibir
       </Typography>
 
       {erro && <Alert severity="error" sx={{ mb: 1 }} onClose={() => setErro(null)}>{erro}</Alert>}
 
       <Stack direction="row" flexWrap="wrap" gap={0.75} sx={{ mb: 2 }}>
-        {zonas.length === 0 && (
-          <Typography variant="body2" color="text.secondary">Nenhuma zona ativa reportada.</Typography>
+        {zonasExibidas.length === 0 && (
+          <Typography variant="body2" color="text.secondary">
+            {catalogo ? 'Nenhuma zona cadastrada para esta central.' : 'Nenhuma zona ativa reportada.'}
+          </Typography>
         )}
-        {zonas.map(z => (
+        {zonasExibidas.map(z => (
           <Tooltip
             key={z.numero}
             title={z.permiteInibir ? `${z.estado ?? 'Desconhecido'} — clique para ${z.estado === 'Inibida' ? 'desinibir' : 'inibir'}` : (z.estado ?? 'Desconhecido')}
           >
             <Chip
               size="small"
-              label={executandoZona === z.numero ? <CircularProgress size={12} /> : `Z${z.numero}`}
+              label={executandoZona === z.numero ? <CircularProgress size={12} /> : rotulo(z.numero)}
               color={z.estado ? COR_ZONA[z.estado] ?? 'default' : 'default'}
               variant={z.estado === 'Inibida' ? 'outlined' : 'filled'}
               onClick={z.permiteInibir ? () => clicarZona(z) : undefined}
@@ -95,7 +110,7 @@ export default function ZonasPanel({ zonas, totalZonas, centralId, onComandoConc
         <DialogTitle>Confirmar comando</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            {confirmacao && `${confirmacao.inibir ? 'Inibir' : 'Desinibir'} a zona ${confirmacao.zona}?`}
+            {confirmacao && `${confirmacao.inibir ? 'Inibir' : 'Desinibir'} ${confirmacao.rotulo}?`}
           </DialogContentText>
         </DialogContent>
         <DialogActions>

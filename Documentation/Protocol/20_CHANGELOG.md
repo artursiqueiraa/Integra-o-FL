@@ -448,4 +448,76 @@ zonas, confirmando de forma independente que a implementação do serviço bate 
 
 ---
 
+## Fase 4 — Tela Operação real (elimina simulação)
+
+**Data:** 2026-07-21
+**Autor:** Sessão de pair-programming com Claude (agente autônomo)
+
+**Arquivos alterados:** `Backend/CentralHub.Api/Controllers/OperationController.cs` (injeta
+`PgmService` + `AppDbContext` no lugar de `OperationService`; mapeia `Comando` direto para
+`LigarAsync`/`DesligarAsync`/`PulsoAsync`).
+**Arquivos removidos:** `Backend/CentralHub.Api/Services/OperationService.cs` (sem consumidores
+restantes); registro correspondente em `Program.cs`.
+
+**Motivação:** a tela "Operação" chamava `OperationService` → `AdapterFactory`/`FakeAdapter`, que
+**sempre retornava sucesso simulado**, nunca falando de verdade com uma central — confundido em
+campo com o fluxo real (Tela Central), que usa `PgmService`/`SessionManager`/sessão TCP real.
+
+**Resultado:** `POST /api/operation/enviar` (mesmo contrato, zero mudança no Frontend) agora
+executa o mesmo caminho real da Tela Central. Testado ao vivo contra a central física conectada
+(`10.0.250.21`): comando `Ligar` PGM 1 confirmado em 2261ms de round-trip real, gravado no
+histórico. `AdapterFactory`/`JflAdapter`/`FakeAdapter` (SDK) ficaram sem nenhum consumidor real
+como consequência (não removidos nesta fase — fora do escopo pedido).
+**Testes:** SDK 141/141, Backend 24/24 (zero regressão) + validação manual contra hardware real.
+
+---
+
+## Fase 5 — Operação Dinâmica por Prédio (cadastro de PGMs/Zonas)
+
+**Data:** 2026-07-21
+**Autor:** Sessão de pair-programming com Claude (agente autônomo)
+
+**Arquivos criados:**
+- `Backend/CentralHub.Api/Models/PgmPredio.cs`, `ZonaPredio.cs`
+- `Backend/CentralHub.Api/DTOs/PgmPredioDtos.cs`, `ZonaPredioDtos.cs`
+- `Backend/CentralHub.Api/Services/PgmPredioService.cs`, `ZonaPredioService.cs`
+- `Backend/CentralHub.Api/Controllers/PgmPredioController.cs`, `ZonaPredioController.cs`
+- `Backend/CentralHub.Api.Tests/PgmPredioServiceTests.cs`, `ZonaPredioServiceTests.cs`
+- `Frontend/src/components/CadastroPgmZonaPanel.tsx`
+
+**Arquivos alterados:**
+- `Backend/CentralHub.Api/Data/AppDbContext.cs` — `DbSet<PgmPredio>`/`DbSet<ZonaPredio>`, índice
+  único `CentralId+Numero` em cada um (evita cadastro duplicado do mesmo número na mesma central).
+- `Backend/CentralHub.Api/Program.cs` — registra `PgmPredioService`/`ZonaPredioService`.
+- `Frontend/src/components/PgmPanel.tsx`/`ZonasPanel.tsx` — prop opcional `catalogo`: quando
+  presente, filtra só os itens cadastrados/ativos e usa o nome do cadastro em vez de "PGM N"/
+  "Z-N" genérico; sem a prop, comportamento idêntico ao de sempre (usado pela Tela Central, sem
+  nenhuma mudança de comportamento lá).
+- `Frontend/src/pages/OperationPage.tsx` — reescrita: seleção dinâmica Prédio → Central (auto-
+  seleciona se só houver uma Central), carrega automaticamente Central/Status/PGMs cadastradas/
+  Zonas cadastradas, monta o painel reaproveitando `StatusConexaoCard`, `ArmPanel`, `PgmPanel`
+  (com catálogo), `ZonasPanel` (com catálogo), `LogCentralPanel` e `CadastroPgmZonaPanel` — **sem
+  nenhum campo de digitação manual de número de PGM/Zona**.
+
+**Motivação:** eliminar a digitação manual de números de PGM/Zona na tela Operação, substituindo
+por um cadastro reaproveitável por Prédio/Central (nome, tipo, ícone), sem duplicar nenhuma
+lógica de comando — todo envio continua passando pelos mesmos serviços reais já homologados
+(`PgmService`, `ArmService`, `ZoneInhibitService`, `CentralStatusService`), só a apresentação
+(nomes/filtragem) mudou.
+
+**Impacto:** nenhum em `Handshake`/`KeepAlive`/`Parser`/`Builder`/`SessionManager`/`JflSession`/
+`Protocol`/`Handlers`/`PgmCommandService`/`ArmCommandService`/`ZoneInhibitCommandService` — só
+cadastro novo (Backend) + composição de componentes já existentes (Frontend).
+**Compatibilidade:** total. `PgmPanel`/`ZonasPanel` continuam funcionando sem a prop `catalogo`
+exatamente como antes (usado pela Tela Central).
+**Testes:** 16 testes novos (`PgmPredioServiceTests` 8 + `ZonaPredioServiceTests` 8, EF Core
+InMemory, cobrindo CRUD + validação de central pertencente ao prédio + número duplicado) — total
+Backend.Api.Tests: 40/40. SDK: 141/141 (inalterado). `npm run build`: 0 erros TypeScript.
+**Observação de schema:** como o projeto usa `EnsureCreated()` (sem EF Migrations formais — ver
+[`06_DATABASE_GUIDE.md`](../06_DATABASE_GUIDE.md)), as tabelas `PgmPredios`/`ZonaPredios` só
+aparecem automaticamente em um banco SQLite **novo**; um `centralhub.db` já existente precisa ser
+recriado (ou as tabelas criadas manualmente) para os endpoints novos funcionarem.
+
+---
+
 **Índice:** [`00_INDEX.md`](00_INDEX.md)

@@ -15,6 +15,8 @@
 6. [Tabela: Centrals](#6-tabela-centrals)
 7. [Tabela: CentralSessions](#7-tabela-centralsessions)
 8. [Tabela: Histories](#8-tabela-histories)
+    - 8.1. [Tabela: PgmPredios](#81-tabela-pgmpredios)
+    - 8.2. [Tabela: ZonaPredios](#82-tabela-zonapredios)
 9. [Por que cada campo existe — perguntas e respostas por campo](#9-por-que-cada-campo-existe--perguntas-e-respostas-por-campo)
 10. [Diferença entre Central e CentralSession (fonte comum de confusão)](#10-diferença-entre-central-e-centralsession-fonte-comum-de-confusão)
 11. [Casos de uso reais (consultas)](#11-casos-de-uso-reais-consultas)
@@ -192,20 +194,55 @@ conectividade.
 
 ## 8. Tabela: Histories
 
-> ⚠️ **Legada** — usada apenas pela tela "Operação" antiga (`OperationPage.tsx` /
-> `OperationController` / `OperationService`), que envia comandos de PGM **simulados** (nunca
-> conversa de verdade com uma central). Os comandos de PGM reais, enviados pela Tela Central
-> (`CentralDetailPage`/`PgmPanel`), **não gravam nesta tabela** — eles são registrados via logs
-> estruturados (ver [`08_COMMANDS_GUIDE.md`](08_COMMANDS_GUIDE.md)), não no banco de dados.
+Gravada pelo `OperationController` (rota `POST /api/operation/enviar`, chamada pela tela
+Operação) a cada comando de PGM **real** — desde que `OperationService` foi removido, o
+controller chama `PgmService` diretamente (mesmo serviço da Tela Central) e só grava um registro
+aqui **depois** que o comando de verdade teve sucesso confirmado pela central. Comandos de PGM
+enviados pela Tela Central (`CentralDetailPage`/`PgmPanel`, fora da tela Operação) **não gravam
+nesta tabela** — eles ficam registrados via logs estruturados (ver
+[`08_COMMANDS_GUIDE.md`](08_COMMANDS_GUIDE.md)), não no banco de dados; a tabela `Histories` é
+específica do fluxo da tela Operação.
 
 | Campo | Tipo | Descrição |
 |---|---|---|
 | `Id` | inteiro | Identificador único. |
-| `Data` | data/hora | Quando o comando (simulado) foi "enviado". |
+| `Data` | data/hora | Quando o comando foi enviado. |
 | `CentralId` | inteiro (FK) | Para qual central. |
 | `PGM` | inteiro | Número da PGM. |
 | `Comando` | texto (50) | `"Pulso"`, `"Ligar"` ou `"Desligar"`. |
-| `Resultado` | texto (500) | Texto simulado (ex.: `"PGM 1 ligado"`) — nunca reflete um resultado real de hardware. |
+| `Resultado` | texto (500) | Texto derivado da confirmação real da central (ex.: `"PGM 1 ligado"`) — só é gravado se o comando de verdade confirmou o estado esperado; se a central estiver offline ou não responder, `PgmService` lança uma exceção antes de chegar a gravar nada aqui. |
+
+## 8.1 Tabela: PgmPredios
+
+Cadastro de PGMs de uma Central com nome/tipo/ícone amigáveis, usado pela tela Operação para
+montar os cartões sem exigir digitação manual do número — pura metadata de apresentação, nunca
+usada para decidir o que enviar no protocolo (o comando real sempre usa o `Numero`).
+
+| Campo | Tipo | Obrigatório? | Descrição |
+|---|---|---|---|
+| `Id` | inteiro | Sim | Identificador único. |
+| `BuildingId` | inteiro (FK) | Sim | A qual Prédio pertence (mesmo prédio da Central). |
+| `CentralId` | inteiro (FK) | Sim | A qual Central esta PGM pertence. |
+| `Numero` | inteiro (1-16) | Sim | Número real da PGM no protocolo — único por Central (índice `CentralId+Numero`). |
+| `Nome` | texto (100) | Sim | Nome amigável exibido na tela (ex.: "Portão da Garagem"). |
+| `Tipo` | texto (50) | Não | Categoria livre (ex.: "Portão", "Luz", "Sirene"). |
+| `Icone` | texto (50) | Não | Chave de ícone (mapeada para um ícone real no Frontend). |
+| `Ativa` | booleano | Sim | Quando `false`, some do painel de Operação sem precisar excluir o cadastro. |
+
+## 8.2 Tabela: ZonaPredios
+
+Mesmo conceito de `PgmPredios`, para zonas (1-99). Sem campo `Icone` (as zonas são exibidas como
+chips coloridos pelo estado real, não por ícone).
+
+| Campo | Tipo | Obrigatório? | Descrição |
+|---|---|---|---|
+| `Id` | inteiro | Sim | Identificador único. |
+| `BuildingId` | inteiro (FK) | Sim | A qual Prédio pertence. |
+| `CentralId` | inteiro (FK) | Sim | A qual Central esta zona pertence. |
+| `Numero` | inteiro (1-99) | Sim | Número real da zona no protocolo — único por Central. |
+| `Nome` | texto (100) | Sim | Nome amigável (ex.: "Porta da Frente"). |
+| `Tipo` | texto (50) | Não | Categoria livre (ex.: "Porta", "Janela", "Movimento"). |
+| `Ativa` | booleano | Sim | Quando `false`, some do painel de Operação sem precisar excluir o cadastro. |
 
 ## 9. Por que cada campo existe — perguntas e respostas por campo
 

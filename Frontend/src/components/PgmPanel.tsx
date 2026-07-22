@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import api from '../services/api'
-import { PgmStatus } from '../types'
+import { PgmStatus, PgmPredio } from '../types'
 import {
   Paper, Typography, Grid, Card, CardContent, CardActions, Button, Chip,
   Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
@@ -15,11 +15,19 @@ type Acao = 'ligar' | 'desligar' | 'pulso'
 interface Confirmacao {
   pgm: number
   acao: Acao
+  rotulo: string
 }
 
 interface Props {
   centralId: number
   pgms: PgmStatus[]
+  /**
+   * Catálogo opcional (nome/tipo cadastrados via `PgmPredioService`) — quando informado, o
+   * painel mostra só as PGMs cadastradas e ativas, com o nome do cadastro em vez de "PGM N"
+   * genérico. Sem essa prop, comportamento idêntico ao de sempre (16 PGMs por número, usado
+   * pela Tela Central). O envio do comando é sempre o mesmo endpoint real, com ou sem catálogo.
+   */
+  catalogo?: PgmPredio[]
   /** Chamado apos qualquer comando concluir com sucesso, para o chamador atualizar o status. */
   onComandoConcluido: () => void
 }
@@ -30,17 +38,24 @@ const ROTULO_ACAO: Record<Acao, string> = {
   pulso: 'Pulso',
 }
 
-export default function PgmPanel({ centralId, pgms, onComandoConcluido }: Props) {
+export default function PgmPanel({ centralId, pgms, catalogo, onComandoConcluido }: Props) {
   const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null)
   const [duracaoPulsoMs, setDuracaoPulsoMs] = useState(1000)
   const [executandoPgm, setExecutandoPgm] = useState<number | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState<string | null>(null)
 
-  const pedirConfirmacao = (pgm: number, acao: Acao) => {
+  const numeros = catalogo
+    ? catalogo.filter(item => item.ativa).map(item => item.numero).sort((a, b) => a - b)
+    : Array.from({ length: 16 }, (_, i) => i + 1)
+
+  const rotulo = (numero: number) => catalogo?.find(item => item.numero === numero)?.nome || `PGM ${numero}`
+  const tipo = (numero: number) => catalogo?.find(item => item.numero === numero)?.tipo
+
+  const pedirConfirmacao = (numero: number, acao: Acao) => {
     setErro(null)
     setSucesso(null)
-    setConfirmacao({ pgm, acao })
+    setConfirmacao({ pgm: numero, acao, rotulo: rotulo(numero) })
   }
 
   const executar = async () => {
@@ -55,11 +70,11 @@ export default function PgmPanel({ centralId, pgms, onComandoConcluido }: Props)
       const path = `/centrais/${centralId}/pgm/${pgm}/${acao}`
       const body = acao === 'pulso' ? { duracaoMs: duracaoPulsoMs } : undefined
       await api.post(path, body)
-      setSucesso(`PGM ${pgm}: comando "${ROTULO_ACAO[acao]}" executado com sucesso.`)
+      setSucesso(`${confirmacao.rotulo}: comando "${ROTULO_ACAO[acao]}" executado com sucesso.`)
       onComandoConcluido()
     } catch (e) {
       const resposta = (e as { response?: { data?: { mensagem?: string } } }).response
-      setErro(resposta?.data?.mensagem || `Falha ao executar "${ROTULO_ACAO[acao]}" na PGM ${pgm}.`)
+      setErro(resposta?.data?.mensagem || `Falha ao executar "${ROTULO_ACAO[acao]}" em ${confirmacao.rotulo}.`)
     } finally {
       setExecutandoPgm(null)
     }
@@ -72,8 +87,12 @@ export default function PgmPanel({ centralId, pgms, onComandoConcluido }: Props)
       {erro && <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErro(null)}>{erro}</Alert>}
       {sucesso && <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSucesso(null)}>{sucesso}</Alert>}
 
+      {numeros.length === 0 && (
+        <Typography variant="body2" color="text.secondary">Nenhuma PGM cadastrada para esta central.</Typography>
+      )}
+
       <Grid container spacing={1.5}>
-        {Array.from({ length: 16 }, (_, i) => i + 1).map(numero => {
+        {numeros.map(numero => {
           const pgm = pgms.find(p => p.numero === numero)
           const acionada = pgm?.acionada ?? false
           const permitida = pgm?.permitida ?? false
@@ -84,7 +103,7 @@ export default function PgmPanel({ centralId, pgms, onComandoConcluido }: Props)
               <Card variant="outlined">
                 <CardContent sx={{ pb: 1 }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="subtitle2">PGM {numero}</Typography>
+                    <Typography variant="subtitle2">{rotulo(numero)}</Typography>
                     {executando
                       ? <CircularProgress size={16} />
                       : <Chip
@@ -94,8 +113,11 @@ export default function PgmPanel({ centralId, pgms, onComandoConcluido }: Props)
                         />
                     }
                   </Stack>
+                  <Typography variant="caption" color="text.secondary">
+                    {catalogo ? `PGM ${numero}${tipo(numero) ? ` · ${tipo(numero)}` : ''}` : null}
+                  </Typography>
                   {!permitida && (
-                    <Typography variant="caption" color="text.secondary">Sem permissão / não configurada</Typography>
+                    <Typography variant="caption" color="text.secondary" display="block">Sem permissão / não configurada</Typography>
                   )}
                 </CardContent>
                 <CardActions sx={{ pt: 0, gap: 0.5 }}>
@@ -131,7 +153,7 @@ export default function PgmPanel({ centralId, pgms, onComandoConcluido }: Props)
         <DialogTitle>Confirmar comando</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            {confirmacao && `Enviar o comando "${ROTULO_ACAO[confirmacao.acao]}" para a PGM ${confirmacao.pgm}?`}
+            {confirmacao && `Enviar o comando "${ROTULO_ACAO[confirmacao.acao]}" para ${confirmacao.rotulo}?`}
           </DialogContentText>
           {confirmacao?.acao === 'pulso' && (
             <TextField

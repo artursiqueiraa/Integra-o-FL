@@ -13,7 +13,7 @@
 3. [Tela: Centrais (CentralsPage) — cadastro](#3-tela-centrais-centralspage--cadastro)
 4. [Tela: Central (CentralDetailPage) — a tela operacional principal](#4-tela-central-centraldetailpage--a-tela-operacional-principal)
 5. [Componentes: Painéis de comando (PGM, Arme, Zonas)](#5-componentes-painéis-de-comando-pgm-arme-zonas)
-6. [Tela: Operação (legada)](#6-tela-operação-legada)
+6. [Tela: Operação (painel dinâmico por Prédio/Central)](#6-tela-operação-painel-dinâmico-por-prédiocentral)
 7. [Como o Frontend fala com o Backend (fluxo REST)](#7-como-o-frontend-fala-com-o-backend-fluxo-rest)
 8. [Como funciona a atualização automática](#8-como-funciona-a-atualização-automática)
 9. [Mapa de rotas](#9-mapa-de-rotas)
@@ -37,14 +37,14 @@
         ▼                  ▼                       ▼
    BuildingsPage      CentralsPage             OperationPage
    (rota "/")         (rota "/centrais")        (rota "/operacao")
-                            │                    [LEGADA — não usar
-                            │ clique no ícone      para operação real]
-                            │ de "olho" numa linha
-                            ▼
+                            │                    [painel dinâmico por
+                            │ clique no ícone      Prédio/Central, mesmos
+                            │ de "olho" numa linha  serviços reais da Tela
+                            ▼                       Central — ver seção 6]
                      CentralDetailPage
                      (rota "/centrais/:id")
-                     ["Tela Central" — onde
-                      a operação real acontece]
+                     ["Tela Central" — cadastro
+                      de uma Central específica]
                             │
                             │ renderiza dentro de si
                             ▼
@@ -206,15 +206,45 @@ decidido automaticamente pelo estado atual do chip) e, ao confirmar, chama
 `POST /api/centrais/{id}/zonas/{zona}/inibir` ou `.../desinibir`. Zonas sem permissão de inibição
 remota continuam como chips normais, não clicáveis.
 
-## 6. Tela: Operação (legada)
+## 6. Tela: Operação (painel dinâmico por Prédio/Central)
 
 **Arquivo:** [`Frontend/src/pages/OperationPage.tsx`](../Frontend/src/pages/OperationPage.tsx).
 **Rota:** `/operacao`.
 
-> ⚠️ **Não usar para operação real.** Esta tela chama `POST /api/operation/enviar`, que usa o
-> `OperationService` legado — **sempre retorna sucesso simulado**, nunca fala de verdade com uma
-> central. Existe só por compatibilidade com o MVP original. A operação real de PGM é feita pela
-> Tela Central (seção 4/5).
+Deixou de ser a tela legada/simulada do MVP original — hoje reaproveita exatamente os mesmos
+componentes e endpoints reais da Tela Central (`ArmPanel`, `PgmPanel`, `ZonasPanel`,
+`StatusConexaoCard`, `LogCentralPanel`), sem nenhuma lógica de protocolo própria. A diferença para
+a Tela Central é o ponto de entrada: em vez de navegar até uma Central específica pela lista, o
+operador escolhe **Prédio → Central** em dois `Select`, e a tela monta o painel operacional
+completo daquela central automaticamente.
+
+**Fluxo:**
+1. Selecionar um Prédio → se ele só tiver uma Central cadastrada, ela é selecionada sozinha;
+   senão, o segundo `Select` lista as Centrais daquele Prédio.
+2. Ao resolver a Central, a tela carrega (e mantém em polling, mesmo intervalo de 5s da Tela
+   Central): status da conexão, status ao vivo (partições/zonas/PGMs), e o catálogo de PGMs/
+   Zonas cadastradas para aquela Central (ver seção 6.1).
+3. `ArmPanel`/`PgmPanel`/`ZonasPanel` aparecem exatamente como na Tela Central — os mesmos
+   componentes, os mesmos endpoints (`~/api/centrais/{id}/particoes/...`,
+   `~/api/centrais/{id}/pgm/...`, `~/api/centrais/{id}/zonas/...`). **Nenhum número de PGM ou
+   Zona é digitado manualmente**: `PgmPanel`/`ZonasPanel` recebem a prop opcional `catalogo`
+   (lista de `PgmPredio`/`ZonaPredio` cadastradas) e, quando presente, mostram só os itens
+   cadastrados e ativos, com o nome do cadastro em vez de "PGM N"/"Z-N" genérico — a mesma prop,
+   quando ausente (caso da Tela Central), preserva o comportamento antigo (todas as 16 PGMs por
+   número). Nenhuma lógica de comando foi duplicada entre as duas telas.
+
+### 6.1 Cadastro de PGMs e Zonas por Prédio
+
+**Arquivo:** [`Frontend/src/components/CadastroPgmZonaPanel.tsx`](../Frontend/src/components/CadastroPgmZonaPanel.tsx).
+
+Seção recolhível ("Gerenciar Cadastro de PGMs e Zonas") dentro da própria tela Operação, com
+formulário + tabela para cada entidade nova: `PgmPredio` (Número 1-16, Nome, Tipo, Ícone, Ativa) e
+`ZonaPredio` (Número 1-99, Nome, Tipo, Ativa) — CRUD completo via
+[`Backend/CentralHub.Api/Controllers/PgmPredioController.cs`](../Backend/CentralHub.Api/Controllers/PgmPredioController.cs)/
+[`ZonaPredioController.cs`](../Backend/CentralHub.Api/Controllers/ZonaPredioController.cs). São
+puro cadastro (nome/tipo/ícone) — nunca falam com uma central; o número e o estado ao vivo
+continuam vindo sempre de `GET /api/centrais/{id}/status`. Ver
+[`06_DATABASE_GUIDE.md`](06_DATABASE_GUIDE.md) para o schema.
 
 ## 7. Como o Frontend fala com o Backend (fluxo REST)
 
@@ -259,7 +289,7 @@ roadmap como candidata a melhoria futura.
 | `/` | `BuildingsPage` | `GET/POST/PUT/DELETE /api/building` |
 | `/centrais` | `CentralsPage` | `GET/POST/PUT/DELETE /api/central` |
 | `/centrais/:id` | `CentralDetailPage` + `PgmPanel` + `ArmPanel` + `ZonasPanel` + `components/session/*` | `GET /api/central/{id}`, `GET /api/centrais/{id}/status`, `GET /api/centrais/{id}/sessao`, `GET /api/centrais/{id}/log`, `GET /api/centrais/{id}/diagnostico`, `POST /api/centrais/{id}/reconectar`, `POST /api/centrais/{id}/pgm/{n}/{ligar\|desligar\|pulso}`, `POST /api/centrais/{id}/particoes/{p}/{armar\|desarmar\|armar-stay\|armar-away}`, `POST /api/centrais/{id}/zonas/{z}/{inibir\|desinibir}` |
-| `/operacao` | `OperationPage` (legada) | `POST /api/operation/enviar` (legado), `GET /api/operation/historico` (legado) |
+| `/operacao` | `OperationPage` + `ArmPanel`/`PgmPanel`/`ZonasPanel`/`CadastroPgmZonaPanel` | `GET /api/centrais/{id}/status\|sessao`, `GET/POST/PUT/DELETE /api/pgmpredio`, `GET/POST/PUT/DELETE /api/zonapredio`, mesmos endpoints reais de PGM/Arme/Zona da Tela Central |
 
 ## 10. Casos de uso reais
 
@@ -303,8 +333,13 @@ Ferramentas de desenvolvedor do navegador (F12): aba **Network** para ver cada r
 ## 15. FAQ
 
 **P: Por que existem duas telas diferentes de operação de PGM (Operação e Tela Central)?**
-R: Histórico do projeto — a tela "Operação" é do MVP original (mock); a Tela Central foi construída
-depois, já com a implementação real. Ver [`01_PROJECT_OVERVIEW.md`](01_PROJECT_OVERVIEW.md).
+R: Histórico do projeto — a tela "Operação" nasceu no MVP original como um mock (`OperationService`/
+`AdapterFactory`/`FakeAdapter`, sempre simulado, removido depois); a Tela Central foi construída
+já com a implementação real. Hoje as duas são reais: a Operação virou um painel dinâmico
+(Prédio → Central) que reaproveita os mesmos componentes/endpoints da Tela Central, útil quando o
+operador não sabe de antemão qual Central quer abrir; a Tela Central continua sendo o cadastro/
+monitoramento de uma Central específica, acessado pela lista de Centrais. Ver
+[`01_PROJECT_OVERVIEW.md`](01_PROJECT_OVERVIEW.md) para o histórico completo.
 
 **P: A interface funciona em celular?**
 R: Usa Material UI com layout responsivo básico (`Grid`), mas não foi otimizada/testada
@@ -313,7 +348,7 @@ especificamente para telas pequenas.
 ## 16. Checklist
 
 - [ ] Sei navegar até a Tela Central de uma Central específica.
-- [ ] Sei explicar por que a tela "Operação" não deve ser usada para comandos reais.
+- [ ] Sei explicar que a tela "Operação" hoje é real (não simulada) e reaproveita os mesmos componentes/endpoints da Tela Central.
 - [ ] Sei explicar como a atualização automática funciona (polling, não push).
 - [ ] Sei onde cada tela busca seus dados (quais endpoints).
 

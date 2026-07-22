@@ -13,6 +13,8 @@ public class AppDbContext : DbContext
     public DbSet<Central> Centrals => Set<Central>();
     public DbSet<History> Histories => Set<History>();
     public DbSet<CentralSession> CentralSessions => Set<CentralSession>();
+    public DbSet<PgmPredio> PgmPredios => Set<PgmPredio>();
+    public DbSet<ZonaPredio> ZonaPredios => Set<ZonaPredio>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -67,6 +69,43 @@ public class AppDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(s => s.CentralId)
                   .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<PgmPredio>(entity =>
+        {
+            entity.Property(p => p.Nome).IsRequired().HasMaxLength(100);
+            entity.Property(p => p.Tipo).HasMaxLength(50);
+            entity.Property(p => p.Icone).HasMaxLength(50);
+            // Não pode existir cadastro duplicado para o mesmo número de PGM na mesma central.
+            entity.HasIndex(p => new { p.CentralId, p.Numero }).IsUnique();
+
+            entity.HasOne(p => p.Building)
+                  .WithMany()
+                  .HasForeignKey(p => p.BuildingId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(p => p.Central)
+                  .WithMany()
+                  .HasForeignKey(p => p.CentralId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ZonaPredio>(entity =>
+        {
+            entity.Property(z => z.Nome).IsRequired().HasMaxLength(100);
+            entity.Property(z => z.Tipo).HasMaxLength(50);
+            // Não pode existir cadastro duplicado para o mesmo número de zona na mesma central.
+            entity.HasIndex(z => new { z.CentralId, z.Numero }).IsUnique();
+
+            entity.HasOne(z => z.Building)
+                  .WithMany()
+                  .HasForeignKey(z => z.BuildingId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(z => z.Central)
+                  .WithMany()
+                  .HasForeignKey(z => z.CentralId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

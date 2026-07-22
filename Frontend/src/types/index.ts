@@ -207,3 +207,30 @@ export interface ZoneInhibitResult {
   inibida?: boolean | null
   erro?: string
 }
+
+// ---- Cadastro de PGMs e Zonas por Prédio (painel de Operação) ----
+
+export interface PgmPredio {
+  id: number
+  buildingId: number
+  buildingNome?: string
+  centralId: number
+  centralNome?: string
+  numero: number
+  nome: string
+  tipo?: string | null
+  icone?: string | null
+  ativa: boolean
+}
+
+export interface ZonaPredio {
+  id: number
+  buildingId: number
+  buildingNome?: string
+  centralId: number
+  centralNome?: string
+  numero: number
+  nome: string
+  tipo?: string | null
+  ativa: boolean
+}
